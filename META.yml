@@ -1,0 +1,30 @@
+--- #YAML:1.0
+name:               Test-Whitespaces
+version:            0.01
+abstract:           test source code for errors in whitespaces
+author:
+    - Ivan Bessarabov <ivan@bessarabov.ru>
+license:            perl
+distribution_type:  module
+configure_requires:
+    ExtUtils::MakeMaker:  0
+build_requires:
+    ExtUtils::MakeMaker:  0
+requires:
+    Carp:             0
+    Cwd:              0
+    Exporter:         0
+    File::Find:       0
+    FindBin:          0
+    List::Util:       0
+    Pod::Usage:       0
+    Term::ANSIColor:  0
+    Test::More:       0
+no_index:
+    directory:
+        - t
+        - inc
+generated_by:       ExtUtils::MakeMaker version 6.55_02
+meta-spec:
+    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
+    version:  1.4
