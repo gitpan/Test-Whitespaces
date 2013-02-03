@@ -19,7 +19,7 @@ Test::Whitespaces - test source code for errors in whitespaces
 
 =head1 VERSION
 
-Version 0.01
+Version 0.02
 
 =head1 SYNOPSIS
 
@@ -78,6 +78,33 @@ files and directories and `L<whiter>` to fix all that errors.
 And by the way, this module don't have any dependencies, but Perl. It does not
 matter much, but it is nice =)
 
+=head2 FAQ
+
+Q: Why not to use perltidy instead of this module?
+
+A: Perltidy is a great thing. It fixes some whitespaces problems in the Perl
+source code. But sometimes you don't need the whole perltidy possibilities,
+but only want to make your whitespaces accurate. Adding Test::Whitespaces
+to the project affects less than adding perltidy. And with Test::Whitespaces
+you can test and fix not only the Perl source code, but any texts. For
+example, you can make sure that you javasript code has no problems with
+whitespaces or you can fix your texts files.
+
+=head1 SEE ALSO
+
+If this module is not what you need, you may try to look to these modules (but
+I hope you will prefer to use Test::Whitespaces):
+
+=over
+
+=item * L<Test::EOL>
+
+=item * L<Test::NoTabs>
+
+=item * L<Test::TrailingSpace>
+
+=back
+
 =head1 AUTHOR
 
 Ivan Bessarabov, C<< <ivan@bessarabov.ru> >>
@@ -94,6 +121,7 @@ L<https://github.com/bessarabov/Test-Whitespaces>
 Please report any bugs or feature requests in GitHub Issues
 L<https://github.com/bessarabov/Test-Whitespaces/issues>
 
+
 =head1 LICENSE AND COPYRIGHT
 
 Copyright 2013 Ivan Bessarabov.
@@ -106,7 +134,7 @@ See http://dev.perl.org/licenses/ for more information.
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 my $true = 1;
 my $false = '';
@@ -332,10 +360,26 @@ sub _get_diff_line {
 
     $error_line =~ s{\t}{\\t}g;
     $error_line =~ s{\r}{\\r}g;
-    $error_line =~ s{( +)(\n?)$}{"•" x length($1) . $2}eg;
+    $error_line =~ s{( +)(\n?)$}{"_" x length($1) . $2}eg;
     $error_line =~ s{\n}{\\n}g;
 
-    return "# L$line_number $error_line\n";
+    my $prefix = "# L$line_number ";
+    my $spacer = "...";
+
+    my $max_length = 78;
+    my $system_length = length($prefix . $spacer);
+    my $max_text_length = $max_length - $system_length;
+
+    my $line = $prefix . $error_line;
+
+    if (length($line) > $max_length) {
+        $error_line =~ /(.{$max_text_length})$/ms;
+        $error_line = $1;
+
+        $line = $prefix . $spacer . $error_line;
+    }
+
+    return $line . "\n";
 }
 
 sub _file_is_in_vcs_index {
