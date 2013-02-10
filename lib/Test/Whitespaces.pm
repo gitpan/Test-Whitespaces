@@ -19,27 +19,35 @@ Test::Whitespaces - test source code for errors in whitespaces
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =head1 SYNOPSIS
 
 In xt/whitespaces.t:
 
-    use Test::Whitespaces;
-
-Running this test will check all files with the source code in the directories
-bin, lib, t and xt for errors in whitespaces. It will pretty print all the
-errors, so it is easy to fix them (by the way, this module ships with a script
-`L<whiter>` that can automaticly fix all the errors).
-
-You can also customize the test. All parameters are optional.
-
     use Test::Whitespaces {
-        dirs => [ 'script', 'lib' ], # Directories to check all the files from
-        files => [ 'README' ],       # Additional files to check
-        ignore => [ qr{\.bak$} ],    # Array with regexpex. Files that matches
-                                     # that regexp are not checked
+
+        # Directories to check all the files from
+        dirs => [ 'lib', 'bin', 't' ],
+
+        # Files to be checekd (if you don't need to check the whole dir)
+        files => [ 'README' ],
+
+        # Files that matches any of this regexp will not be checked
+        ignore => [ qr{\.bak$} ],
+
     };
+
+This test will check all the files specified. It will pretty print all the
+errors, so it is easy to undestand where is the problem.
+
+This modules ships with the script `L<whiter>` that can fix all errors.
+
+This module is also shipeed with the script `L<test_whitespaces>` that you can
+use to check source code without writing your custom test file.
+
+All parameters are optional, but you need to specify at least one file to
+check.
 
 =head2 DESCRIPTION
 
@@ -65,9 +73,9 @@ This module checks that all the rules are followed.
 This module don't export any subroutines, you only need to write a test file
 and write there:
 
-    use Test::Whitespaces;
+    use Test::Whitespaces { dirs => ['lib'] };
 
-More complex usage can be found in SYNOPSIS section.
+Full description of the parameters is written in the SYNOPSIS section.
 
 This module does not check the files that are stored in the version control
 system directories (you remember, that .git, .svn and friends).
@@ -89,6 +97,14 @@ to the project affects less than adding perltidy. And with Test::Whitespaces
 you can test and fix not only the Perl source code, but any texts. For
 example, you can make sure that you javasript code has no problems with
 whitespaces or you can fix your texts files.
+
+Q: Why there is no default values?
+
+A: The idea behind this test is to make delelopers work simplier. There are a
+lot of things a developer should remember. I don't want to ask developers to
+remember the default values of this module. The person writing test should
+write the exact list of thing to check, but such precise writing simplifies
+the work of person who reads the code.
 
 =head1 SEE ALSO
 
@@ -134,13 +150,14 @@ See http://dev.perl.org/licenses/ for more information.
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 my $true = 1;
 my $false = '';
 
 my $current_test = 0;
 my $verbose = $false;
+my $print_ok_files = $true;
 my @ignore;
 
 sub import {
@@ -160,12 +177,7 @@ sub import {
     }
 
     if (not defined $args->{dirs}) {
-        $args->{dirs} = [
-            "$Bin/../bin",
-            "$Bin/../lib",
-            "$Bin/../t",
-            "$Bin/../xt",
-        ],
+        $args->{dirs} = [],
     }
 
     if (not defined $args->{files}) {
@@ -205,6 +217,11 @@ sub _run_script {
         }
 
         if (not $seen_two_minuses) {
+            if ($args{script} eq 'test_whitespaces' and $argv eq '--only_errors') {
+                $print_ok_files = $false;
+                next;
+            }
+
             if ($argv eq '--help') {
                 pod2usage({
                     -exitval => 0,
@@ -253,16 +270,31 @@ sub _is {
     $current_test++;
 
     if ($got eq $expected) {
-        print "ok $current_test - $text\n";
+        if ($print_ok_files) {
+            print "ok $current_test - $text\n";
+        }
     } else {
-        print "not ok $current_test - $text\n";
-        print _get_diff($got, $expected);
+        _print_red("not ok");
+        print " $current_test - $text\n";
+        _print_diff($got, $expected);
     }
 }
 
 sub _done_testing {
     print "1..$current_test\n";
 };
+
+sub _print_red {
+    my ($text) = @_;
+
+    if (-t STDOUT) {
+        print RED();
+        print $text;
+        print RESET();
+    } else {
+        print $text;
+    }
+}
 
 sub _read_file {
     my ($filename) = @_;
@@ -305,14 +337,18 @@ sub _get_fixed_text {
     return $fixed_text;
 }
 
-sub _get_diff {
+sub _print_diff {
     my ($got, $expected) = @_;
 
     croak "Expected 'got'. Stopped" if not defined $got;
     croak "Expected 'expected'. Stopped" if not defined $expected;
 
     if ($got eq "") {
-        return "# L1\n";
+        print "# line 1 ";
+        _print_red("No \\n on line");
+        print "\n";
+
+        return $false;
     }
 
     my $diff = '';
@@ -342,44 +378,134 @@ sub _get_diff {
     foreach my $line_number (sort {$a <=> $b} keys %error_lines) {
 
         if ($previous_line_number + 1 != $line_number) {
-            $diff .= "# ...\n";
+            print "# ...\n";
         }
 
-        $diff .= _get_diff_line($line_number, $error_lines{$line_number});
+        _print_diff_line($line_number, $error_lines{$line_number});
 
         $previous_line_number = $line_number;
     }
 
-    return $diff;
+    return $false;
 }
 
-sub _get_diff_line {
+sub _print_diff_line {
     my ($line_number, $error_line) = @_;
 
-    return "# L$line_number\n" if not defined $error_line;
+    if ($error_line eq "\n") {
+        print "# line $line_number \\n ";
+        _print_red("Empty line in the end of file");
+        print "\n";
 
-    $error_line =~ s{\t}{\\t}g;
-    $error_line =~ s{\r}{\\r}g;
-    $error_line =~ s{( +)(\n?)$}{"_" x length($1) . $2}eg;
-    $error_line =~ s{\n}{\\n}g;
+        return;
+    }
 
-    my $prefix = "# L$line_number ";
+    # array of hashes:
+    # { status => 'correct', text => 'a' },
+    # { status => 'error', text => '__' },
+    # { status => 'correct', text => '\n' },
+    my @parsed_line = _split_error_line($error_line);
+
+    my $prefix = "# line $line_number: ";
     my $spacer = "...";
-
     my $max_length = 78;
     my $system_length = length($prefix . $spacer);
     my $max_text_length = $max_length - $system_length;
 
-    my $line = $prefix . $error_line;
+    my $line;
+    map { $line .= $_->{text}} @parsed_line;
 
-    if (length($line) > $max_length) {
-        $error_line =~ /(.{$max_text_length})$/ms;
-        $error_line = $1;
+    my $symbols_to_skip = length($line) - $max_text_length;
 
-        $line = $prefix . $spacer . $error_line;
+    my $skipped_length = 0;
+
+    print $prefix;
+
+    if ($symbols_to_skip > 0) {
+        print $spacer;
     }
 
-    return $line . "\n";
+    foreach (@parsed_line) {
+
+        if ($skipped_length < $symbols_to_skip) {
+            my $removed = substr $_->{text}, 0, ($symbols_to_skip - $skipped_length), '';
+            $skipped_length += length($removed);
+        }
+
+        if ($_->{status} eq 'correct') {
+            print $_->{text};
+        } else {
+            _print_red($_->{text});
+        }
+    }
+    print "\n";
+
+    return $false;
+}
+
+sub _split_error_line {
+    my ($error_line) = @_;
+
+    my @parsed_line;
+
+    my $correct_part = '';
+    my $error_part = '';
+
+    # Value of $prev_status can be 'correct' or 'error'
+    my $prev_status = '';
+
+    my $was_change = $false;
+
+    foreach my $i (0..(length($error_line)-1)) {
+        my $symbol = substr($error_line, $i, 1);
+        my $rest = substr($error_line, $i+1);
+
+        if ($symbol eq "\t" or $symbol eq "\r") {
+            $symbol =~ s{\t}{\\t}g;
+            $symbol =~ s{\r}{\\r}g;
+
+            $error_part .= $symbol;
+            if ($prev_status eq 'correct') {
+                $was_change = $true
+            }
+            $prev_status = 'error';
+        } elsif ($symbol =~ / / and $rest =~ /^\s*$/) {
+            $error_part .= "_";
+
+            if ($prev_status eq 'correct') {
+                $was_change = $true
+            }
+            $prev_status = 'error';
+        } else {
+            $symbol =~ s{\n}{\\n}g;
+            $correct_part .= $symbol;
+
+            if ($prev_status eq 'error') {
+                $was_change = $true
+            }
+            $prev_status = 'correct';
+        }
+
+        if ($was_change) {
+            if ($prev_status eq 'error') {
+                push @parsed_line, { status => 'correct', text => $correct_part };
+                $correct_part = '';
+            } elsif ($prev_status eq 'correct') {
+                push @parsed_line, { status => 'error', text => $error_part };
+                $error_part = '';
+            }
+            $was_change = $false;
+        }
+    }
+
+    if ($prev_status eq 'correct') {
+        push @parsed_line, { status => 'correct', text => $correct_part };
+    } elsif ($prev_status eq 'error') {
+        push @parsed_line, { status => 'error', text => $error_part };
+        $error_part = '';
+    }
+
+    return @parsed_line;
 }
 
 sub _file_is_in_vcs_index {
