@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Test-Whitespaces
-version:            0.03
+version:            0.04
 abstract:           test source code for errors in whitespaces
 author:
     - Ivan Bessarabov <ivan@bessarabov.ru>
@@ -16,6 +16,7 @@ requires:
     Exporter:         0
     File::Find:       0
     FindBin:          0
+    Getopt::Long:     0
     List::Util:       0
     Pod::Usage:       0
     Term::ANSIColor:  0

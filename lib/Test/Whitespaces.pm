@@ -2,14 +2,17 @@ package Test::Whitespaces;
 
 use warnings;
 use strict;
+use utf8;
+use open qw(:std :utf8);
 
 use Carp;
 use Cwd qw(realpath);
 use File::Find;
 use FindBin qw($Bin);
+use Getopt::Long;
 use List::Util qw(max);
-use Term::ANSIColor qw(:constants);
 use Pod::Usage;
+use Term::ANSIColor qw(:constants);
 
 =encoding UTF-8
 
@@ -19,7 +22,7 @@ Test::Whitespaces - test source code for errors in whitespaces
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =head1 SYNOPSIS
 
@@ -117,6 +120,8 @@ I hope you will prefer to use Test::Whitespaces):
 
 =item * L<Test::NoTabs>
 
+=item * L<Test::Tabs>
+
 =item * L<Test::TrailingSpace>
 
 =back
@@ -124,6 +129,14 @@ I hope you will prefer to use Test::Whitespaces):
 =head1 AUTHOR
 
 Ivan Bessarabov, C<< <ivan@bessarabov.ru> >>
+
+=head1 CONTRIBUTORS
+
+=over 4
+
+=item * Rob Hoelz (RHOELZ)
+
+=back
 
 =head1 SOURCE CODE
 
@@ -150,7 +163,7 @@ See http://dev.perl.org/licenses/ for more information.
 
 =cut
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 my $true = 1;
 my $false = '';
@@ -206,48 +219,40 @@ sub _run_script {
         croak "_run_script expected to recieve param 'script'. Stopped";
     }
 
-    my @to_check;
-    my $seen_two_minuses = $false;
+    my $opt;
 
-    foreach my $argv (@{$args{argv}}) {
+    GetOptions (
+        "only_errors" => \$opt->{only_errors},
+        "help" => \$opt->{help},
+        "version" => \$opt->{version},
+        "verbose" => \$opt->{verbose},
+    );
 
-        if ($argv eq '--') {
-            $seen_two_minuses = $true;
-            next;
-        }
-
-        if (not $seen_two_minuses) {
-            if ($args{script} eq 'test_whitespaces' and $argv eq '--only_errors') {
-                $print_ok_files = $false;
-                next;
-            }
-
-            if ($argv eq '--help') {
-                pod2usage({
-                    -exitval => 0,
-                });
-            }
-
-            if ($argv eq '--version') {
-                print "$args{script} $VERSION\n";
-                exit 0;
-            }
-
-            if ($args{script} eq 'whiter' and $argv eq '--verbose') {
-                $verbose = $true;
-                next;
-            }
-        }
-
-        push @to_check, $argv;
+    if ($opt->{help}) {
+        pod2usage({
+            -exitval => 0,
+        });
     }
 
-    unless (@to_check) {
+    if ($opt->{version}) {
+        print "$args{script} $VERSION\n";
+        exit 0;
+    }
+
+    if ($args{script} eq 'test_whitespaces' and $opt->{only_errors}) {
+        $print_ok_files = $false;
+    }
+
+    if ($args{script} eq 'whiter' and $opt->{verbose}) {
+        $verbose = $true;
+    }
+
+    unless (@ARGV) {
         print "No. Run me with some parameters, please.\n";
         exit 1;
     }
 
-    foreach my $argv (@to_check) {
+    foreach my $argv (@ARGV) {
         if (-d $argv) {
             $args{dir}->($argv);
         } elsif (-T $argv) {
@@ -299,7 +304,7 @@ sub _print_red {
 sub _read_file {
     my ($filename) = @_;
 
-    open FILE, "<", $filename or croak "Can't open file '$filename': $!. Stopped";
+    open FILE, "< :encoding(UTF-8)", $filename or croak "Can't open file '$filename': $!. Stopped";
     my @lines = <FILE>;
     close FILE;
 
@@ -311,7 +316,7 @@ sub _read_file {
 sub _write_file {
     my ($filename, $content) = @_;
 
-    open FILE, ">", $filename or croak "Can't open file '$filename': $!. Stopped";
+    open FILE, "> :encoding(UTF-8)", $filename or croak "Can't open file '$filename': $!. Stopped";
     print FILE $content;
     close FILE;
 
