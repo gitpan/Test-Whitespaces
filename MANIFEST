@@ -1,10 +1,12 @@
 Changes
+LICENSE
 MANIFEST
 META.yml
 Makefile.PL
 README.md
 bin/test_whitespaces
 bin/whiter
+dist.ini
 lib/Test/Whitespaces.pm
 t/00-load.t
 t/_get_fixed_text.t
