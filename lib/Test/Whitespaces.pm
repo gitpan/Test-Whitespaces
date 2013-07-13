@@ -1,6 +1,6 @@
 package Test::Whitespaces;
 {
-  $Test::Whitespaces::VERSION = '0.05';
+  $Test::Whitespaces::VERSION = '1.0.0';
 }
 
 # ABSTRACT: test source code for errors in whitespaces
@@ -17,12 +17,14 @@ use FindBin qw($Bin);
 use Getopt::Long;
 use List::Util qw(max);
 use Pod::Usage;
-use Term::ANSIColor qw(:constants);
+use Term::ANSIColor qw(colored);
 
 
 
 my $true = 1;
 my $false = '';
+
+$| = 1;
 
 my $current_test = 0;
 my $verbose = $false;
@@ -114,11 +116,10 @@ sub _run_script {
         } elsif (-T $argv) {
             $args{file}->($argv);
         } else {
-            print
-                RED
-                . "Fatal error. '$argv' is not a directory and it is not a text file.\n"
-                . RESET
-                ;
+            print _colored(
+                "Fatal error. '$argv' is not a directory and it is not a text file.\n",
+                "red"
+            );
             exit 1;
         }
     }
@@ -135,9 +136,23 @@ sub _is {
             print "ok $current_test - $text\n";
         }
     } else {
-        _print_red("not ok");
+        print _colored("not ok", "red");
         print " $current_test - $text\n";
-        _print_diff($got, $expected);
+        my $diff =
+            "# \n"
+            . "# ## Failed check on file '$text':\n"
+            . "# \n"
+            . _get_diff($got, $expected)
+            . "# \n"
+            . "# \n"
+            ;
+
+        if ($ENV{HARNESS_ACTIVE}) {
+            print STDERR "\n";
+            print STDERR $diff;
+        } else {
+            print $diff;
+        }
     }
 }
 
@@ -145,15 +160,13 @@ sub _done_testing {
     print "1..$current_test\n";
 };
 
-sub _print_red {
-    my ($text) = @_;
+sub _colored {
+    my ($text, $color) = @_;
 
     if (-t STDOUT) {
-        print RED();
-        print $text;
-        print RESET();
+        return colored($text, $color);
     } else {
-        print $text;
+        return $text;
     }
 }
 
@@ -198,18 +211,20 @@ sub _get_fixed_text {
     return $fixed_text;
 }
 
-sub _print_diff {
+sub _get_diff {
     my ($got, $expected) = @_;
 
     croak "Expected 'got'. Stopped" if not defined $got;
     croak "Expected 'expected'. Stopped" if not defined $expected;
 
-    if ($got eq "") {
-        print "# line 1 ";
-        _print_red("No \\n on line");
-        print "\n";
+    my $return;
 
-        return $false;
+    if ($got eq "") {
+        $return .= "# line 1 ";
+        $return .= _colored("No \\n on line", "red");
+        $return .= "\n";
+
+        return $return;
     }
 
     my $diff = '';
@@ -239,26 +254,28 @@ sub _print_diff {
     foreach my $line_number (sort {$a <=> $b} keys %error_lines) {
 
         if ($previous_line_number + 1 != $line_number) {
-            print "# ...\n";
+            $return .= "# ...\n";
         }
 
-        _print_diff_line($line_number, $error_lines{$line_number});
+        $return .= _get_diff_line($line_number, $error_lines{$line_number});
 
         $previous_line_number = $line_number;
     }
 
-    return $false;
+    return $return;
 }
 
-sub _print_diff_line {
+sub _get_diff_line {
     my ($line_number, $error_line) = @_;
 
-    if ($error_line eq "\n") {
-        print "# line $line_number \\n ";
-        _print_red("Empty line in the end of file");
-        print "\n";
+    my $diff_line;
 
-        return;
+    if ($error_line eq "\n") {
+        $diff_line .= "# line $line_number \\n ";
+        $diff_line .= _colored("Empty line in the end of file", "red");
+        $diff_line .= "\n";
+
+        return $diff_line;
     }
 
     # array of hashes:
@@ -280,10 +297,10 @@ sub _print_diff_line {
 
     my $skipped_length = 0;
 
-    print $prefix;
+    $diff_line .= $prefix;
 
     if ($symbols_to_skip > 0) {
-        print $spacer;
+        $diff_line .= $spacer;
     }
 
     foreach (@parsed_line) {
@@ -294,14 +311,14 @@ sub _print_diff_line {
         }
 
         if ($_->{status} eq 'correct') {
-            print $_->{text};
+            $diff_line .= $_->{text};
         } else {
-            _print_red($_->{text});
+            $diff_line .= _colored($_->{text}, 'red');
         }
     }
-    print "\n";
+    $diff_line .= "\n";
 
-    return $false;
+    return $diff_line;
 }
 
 sub _split_error_line {
@@ -419,7 +436,7 @@ sub _check_file {
         my $relative_filename = $filename;
         $relative_filename =~ s{^$module_path}{};
 
-        _is($content, $fixed_content, "whitespaces in $relative_filename");
+        _is($content, $fixed_content, "$relative_filename");
     }
 
 }
@@ -480,7 +497,7 @@ Test::Whitespaces - test source code for errors in whitespaces
 
 =head1 VERSION
 
-version 0.05
+version 1.0.0
 
 =head1 SYNOPSIS
 
@@ -568,6 +585,16 @@ lot of things a developer should remember. I don't want to ask developers to
 remember the default values of this module. The person writing test should
 write the exact list of thing to check, but such precise writing simplifies
 the work of person who reads the code.
+
+Q: What Perl version do I need to use Test::Whitespaces?
+
+A: This module works with Perl 5.8.0 and above. In Perl 5.8.0 the better
+Unicode support was implemented that is needed for this module.
+
+Q: What is the logic for version numbering?
+
+A: Test::Whitespaces version numbers uses Semantic Versioning standart.
+Please visit http://semver.org/ to find out all about this great thing.
 
 =head1 SEE ALSO
 

@@ -9,6 +9,6 @@ bin/whiter
 dist.ini
 lib/Test/Whitespaces.pm
 t/00-load.t
+t/_get_diff.t
 t/_get_fixed_text.t
-t/_print_diff.t
 t/_split_error_line.t

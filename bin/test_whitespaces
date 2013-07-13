@@ -25,7 +25,7 @@ test_whitespaces - script to check files for errors in whitespaces
 
 =head1 VERSION
 
-version 0.05
+version 1.0.0
 
 =head1 SYNOPSIS
 
