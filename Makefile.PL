@@ -17,8 +17,8 @@ my %WriteMakefileArgs = (
   },
   "DISTNAME" => "Test-Whitespaces",
   "EXE_FILES" => [
-    "bin/whiter",
-    "bin/test_whitespaces"
+    "bin/test_whitespaces",
+    "bin/whiter"
   ],
   "LICENSE" => "perl",
   "NAME" => "Test::Whitespaces",
@@ -39,7 +39,7 @@ my %WriteMakefileArgs = (
   "TEST_REQUIRES" => {
     "Test::More" => 0
   },
-  "VERSION" => "1.2.0",
+  "VERSION" => "1.2.1",
   "test" => {
     "TESTS" => "t/*.t"
   }
